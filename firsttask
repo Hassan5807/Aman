@@ -1,0 +1,135 @@
+import argparse
+import sys
+
+# Function to check if the game is over based on the version
+def is_game_over(red, blue, version):
+    if version == 'standard':
+        return red == 0 or blue == 0
+    elif version == 'misere':
+        return red == 0 and blue == 0
+
+# Scoring function
+def calculate_score(red, blue):
+    return 2 * red + 3 * blue
+
+# MinMax Algorithm with Alpha-Beta Pruning
+def minimax(red, blue, depth, is_maximizing, alpha, beta, version):
+    if is_game_over(red, blue, version) or depth == 0:
+        return calculate_score(red, blue)
+    
+    if is_maximizing:
+        max_eval = -sys.maxsize
+        for move in possible_moves(red, blue, version):
+            new_red, new_blue = apply_move(red, blue, move)
+            eval = minimax(new_red, new_blue, depth - 1, False, alpha, beta, version)
+            max_eval = max(max_eval, eval)
+            alpha = max(alpha, eval)
+            if beta <= alpha:
+                break
+        return max_eval
+    else:
+        min_eval = sys.maxsize
+        for move in possible_moves(red, blue, version):
+            new_red, new_blue = apply_move(red, blue, move)
+            eval = minimax(new_red, new_blue, depth - 1, True, alpha, beta, version)
+            min_eval = min(min_eval, eval)
+            beta = min(beta, eval)
+            if beta <= alpha:
+                break
+        return min_eval
+
+# Function to generate all possible moves
+def possible_moves(red, blue, version):
+    moves = []
+    if version == "standard":
+        if red >= 1: moves.append(('red', 1))
+        if red >= 2: moves.append(('red', 2))
+        if blue >= 1: moves.append(('blue', 1))
+        if blue >= 2: moves.append(('blue', 2))
+    elif version == "misere":
+        if blue >= 1: moves.append(('blue', 1))
+        if red >= 1: moves.append(('red', 1))
+        if blue >= 2: moves.append(('blue', 2))
+        if red >= 2: moves.append(('red', 2))
+    return moves
+
+# Function to apply a move and return the new game state
+def apply_move(red, blue, move):
+    if move[0] == 'red':
+        return red - move[1], blue
+    else:
+        return red, blue - move[1]
+
+# AI's move decision using MinMax with Alpha-Beta Pruning
+def computer_move(red, blue, depth, version):
+    best_move = None
+    best_value = -sys.maxsize
+    for move in possible_moves(red, blue, version):
+        new_red, new_blue = apply_move(red, blue, move)
+        move_value = minimax(new_red, new_blue, depth, False, -sys.maxsize, sys.maxsize, version)
+        if move_value > best_value:
+            best_value = move_value
+            best_move = move
+    return best_move
+
+# Function for human player's move
+def human_move(red, blue):
+    while True:
+        print(f"Current state: Red = {red}, Blue = {blue}")
+        pile = input("Choose a pile to remove from (red/blue): ").lower()
+        if pile not in ['red', 'blue']:
+            print("Invalid pile. Please choose 'red' or 'blue'.")
+            continue
+        number = int(input(f"How many marbles to remove from {pile} (1 or 2): "))
+        if number not in [1, 2]:
+            print("Invalid number. Please choose 1 or 2.")
+            continue
+        if (pile == 'red' and red >= number) or (pile == 'blue' and blue >= number):
+            return pile, number
+        else:
+            print(f"Not enough marbles in the {pile} pile. Try again.")
+
+# Main game loop
+def play_game(red, blue, version, first_player, depth):
+    turn = first_player
+    while not is_game_over(red, blue, version):
+        if turn == "human":
+            print("\nYour Turn:")
+            move = human_move(red, blue)
+            if move[0] == "red":
+                red -= move[1]
+            else:
+                blue -= move[1]
+            turn = "computer"
+        else:
+            print("\nComputer's Turn:")
+            move = computer_move(red, blue, depth, version)
+            print(f"Computer chose to remove {move[1]} marbles from {move[0]} pile.")
+            if move[0] == "red":
+                red -= move[1]
+            else:
+                blue -= move[1]
+            turn = "human"
+    
+    print("\nGame Over!")
+    if version == "standard":
+        print("You lose!" if turn == "human" else "You win!")
+    else:
+        print("You win!" if turn == "human" else "You lose!")
+    print(f"Final Score: {calculate_score(red, blue)}")
+
+# Command line argument parsing
+def main():
+    parser = argparse.ArgumentParser(description='Red-Blue Nim Game')
+    parser.add_argument('num_red', type=int, help='Number of red marbles')
+    parser.add_argument('num_blue', type=int, help='Number of blue marbles')
+    parser.add_argument('--version', choices=['standard', 'misere'], default='standard', help='Game version (standard or misere)')
+    parser.add_argument('--first-player', choices=['human', 'computer'], default='computer', help='First player (human or computer)')
+    parser.add_argument('--depth', type=int, default=5, help='Search depth for AI')
+    
+    args = parser.parse_args()
+
+    play_game(args.num_red, args.num_blue, args.version, args.first_player, args.depth)
+
+if __name__ == "__main__":
+    main()
